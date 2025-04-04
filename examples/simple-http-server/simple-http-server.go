@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/InVisionApp/go-health/v2"
-	"github.com/InVisionApp/go-health/v2/checkers"
-	"github.com/InVisionApp/go-health/v2/handlers"
+	"github.com/confluentinc/go-health/v2"
+	"github.com/confluentinc/go-health/v2/checkers"
+	"github.com/confluentinc/go-health/v2/handlers"
 )
 
 func main() {
