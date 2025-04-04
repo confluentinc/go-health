@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/InVisionApp/go-health/v2"
+	"github.com/confluentinc/go-health/v2"
 )
 
 type jsonStatus struct {
@@ -20,7 +20,7 @@ type mutexMap struct {
 }
 
 // NewBasicHandlerFunc will return an `http.HandlerFunc` that will write `ok`
-// string + `http.StatusOK` to `rw`` if `h.Failed()` returns `false`;
+// string + `http.StatusOK` to `rw` if `h.Failed()` returns `false`;
 // returns `error` + `http.StatusInternalServerError` if `h.Failed()` returns `true`.
 func NewBasicHandlerFunc(h health.IHealth) http.HandlerFunc {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -39,7 +39,7 @@ func NewBasicHandlerFunc(h health.IHealth) http.HandlerFunc {
 
 // NewJSONHandlerFunc will return an `http.HandlerFunc` that will marshal and
 // write the contents of `h.StateMapInterface()` to `rw` and set status code to
-//  `http.StatusOK` if `h.Failed()` is `false` OR set status code to
+// `http.StatusOK` if `h.Failed()` is `false` OR set status code to
 // `http.StatusInternalServerError` if `h.Failed` is `true`.
 // It also accepts a set of optional custom fields to be added to the final JSON body
 func NewJSONHandlerFunc(h health.IHealth, custom map[string]interface{}) http.HandlerFunc {

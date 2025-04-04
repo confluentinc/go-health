@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/InVisionApp/go-health/v2/checkers"
-	"github.com/InVisionApp/go-health/v2/fakes"
-	"github.com/InVisionApp/go-health/v2/fakes/netfakes"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/confluentinc/go-health/v2/checkers"
+	"github.com/confluentinc/go-health/v2/fakes"
+	"github.com/confluentinc/go-health/v2/fakes/netfakes"
 )
 
 func TestReachableSuccessUsingDefaults(t *testing.T) {
