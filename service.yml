@@ -1,0 +1,8 @@
+name: go-health
+lang: go
+lang_version: 1.13
+git:
+  enable: true
+semaphore:
+  enable: true
+  pipeline_enable: true
