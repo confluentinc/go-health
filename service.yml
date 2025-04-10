@@ -5,4 +5,4 @@ git:
   enable: true
 semaphore:
   enable: true
-  pipeline_enable: true
+  pipeline_enable: false
