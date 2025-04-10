@@ -1,0 +1,49 @@
+version: v1.0
+name: build-test-release
+agent:
+  machine:
+    type: s1-prod-ubuntu24-04-amd64-1
+
+auto_cancel:
+  running:
+    when: "branch != 'master'"
+
+execution_time_limit:
+  hours: 1
+
+queue:
+  - when: "branch != 'master'"
+    processing: parallel
+
+global_job_config:
+  prologue:
+    commands:
+      - sem-version go 1.23.8
+      - export "GOPATH=$(go env GOPATH)"
+      - export "SEMAPHORE_GIT_DIR=${GOPATH}/src/github.com/confluentinc/${SEMAPHORE_PROJECT_NAME}"
+      - export "PATH=${GOPATH}/bin:${PATH}"
+      - mkdir -vp "${SEMAPHORE_GIT_DIR}" "${GOPATH}/bin"
+      - checkout
+
+blocks:
+  - name: "Test"
+    run:
+      # don't run the build or unit tests on non-functional changes...
+      when: "branch != 'master' and change_in('/', {exclude: ['.github/']})"
+    task:
+      jobs:
+        - name: "Test"
+          commands:
+            - make test/unit
+
+  - name: "Test and Push Tag"
+    run:
+      # push tag only on master branch
+      when: "branch = 'master' and change_in('/')"
+    task:
+      jobs:
+        - name: "Test and Push Tag"
+          commands:
+            - make test/unit
+            - git tag -a -m "Release v2.1.5" v2.1.5
+            - git push origin v2.1.5
