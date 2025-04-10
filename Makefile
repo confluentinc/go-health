@@ -76,3 +76,18 @@ help: ## Display this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_\/-]+:.*?## / {printf "\033[34m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | \
 		sort | \
 		grep -v '#'
+
+### tag bumps ###
+_empty :=
+_space := $(_empty) $(empty)
+CLEAN_VERSION := $(shell git describe --tags --abbrev=0)
+
+.PHONY: tag-bump-minor
+split_version := $(subst .,$(_space),$(CLEAN_VERSION))
+bump_minor := $(shell expr $(word 2,$(split_version)) + 1)
+NEXT_TAG := $(word 1,$(split_version)).$(bump_minor).0
+tag-bump-minor: ## Bump the minor version
+	@echo "Current Tag: $(CLEAN_VERSION)"
+	@echo "Creating New Tag: $(NEXT_TAG)"
+	@git tag $(NEXT_TAG)
+	@git push origin $(NEXT_TAG)
