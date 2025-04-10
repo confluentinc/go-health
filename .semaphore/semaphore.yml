@@ -45,5 +45,4 @@ blocks:
         - name: "Test and Push Tag"
           commands:
             - make test/unit
-            - git tag -a -m "Release v2.1.5" v2.1.5
-            - git push origin v2.1.5
+            - make tag-bump-minor
