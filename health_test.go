@@ -3,15 +3,14 @@ package health
 import (
 	"errors"
 	"fmt"
+	"github.com/confluentinc/go-health/v2/testlog"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
 
-	"github.com/InVisionApp/go-logger"
-	"github.com/InVisionApp/go-logger/shims/testlog"
-
 	"github.com/confluentinc/go-health/v2/fakes"
+	"github.com/confluentinc/go-health/v2/log"
 )
 
 var (

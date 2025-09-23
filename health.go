@@ -7,10 +7,9 @@ package health
 
 import (
 	"errors"
+	"github.com/confluentinc/go-health/v2/log"
 	"sync"
 	"time"
-
-	"github.com/InVisionApp/go-logger"
 )
 
 //go:generate counterfeiter -o ./fakes/icheckable.go . ICheckable
