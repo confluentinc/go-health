@@ -343,7 +343,9 @@ func (h *Health) handleStatusListener(stateEntry *State) {
 		if !prevState.isFailure() {
 			// new failure: previous state was ok
 			if h.StatusListener != nil {
-				go h.StatusListener.HealthCheckFailed(stateEntry)
+				// copy the stateEntry so the callbacks can use it without risk of it being modified
+				copyEntry := *stateEntry
+				go h.StatusListener.HealthCheckFailed(&copyEntry)
 			}
 
 			stateEntry.TimeOfFirstFailure = time.Now()
@@ -357,7 +359,9 @@ func (h *Health) handleStatusListener(stateEntry *State) {
 		failureSeconds := time.Now().Sub(prevState.TimeOfFirstFailure).Seconds()
 
 		if h.StatusListener != nil {
-			go h.StatusListener.HealthCheckRecovered(stateEntry, prevState.ContiguousFailures, failureSeconds)
+			// copy the stateEntry so the callbacks can use it without risk of it being modified
+			copyEntry := *stateEntry
+			go h.StatusListener.HealthCheckRecovered(&copyEntry, prevState.ContiguousFailures, failureSeconds)
 		}
 	}
 }
