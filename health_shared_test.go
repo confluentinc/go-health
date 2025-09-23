@@ -2,9 +2,8 @@ package health
 
 import (
 	"fmt"
+	"github.com/confluentinc/go-health/v2/log"
 	"time"
-
-	"github.com/InVisionApp/go-logger"
 
 	"github.com/confluentinc/go-health/v2/fakes"
 )
