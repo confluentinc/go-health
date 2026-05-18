@@ -38,6 +38,7 @@ type IHealth interface {
 	Stop() error
 	State() (map[string]State, bool, error)
 	Failed() bool
+	Configs() []*Config
 }
 
 // ICheckable is an interface implemented by a number of bundled checkers such
@@ -125,22 +126,24 @@ type Health struct {
 	// StatusListener will report failures and recoveries
 	StatusListener IStatusListener
 
-	active     *sBool // indicates whether the healthcheck is actively running
-	configs    []*Config
-	states     map[string]State
-	statesLock sync.Mutex
-	runners    map[string]chan struct{} // contains map of active runners w/ a stop channel
+	active      *sBool // indicates whether the healthcheck is actively running
+	configs     []*Config
+	configsLock sync.Mutex
+	states      map[string]State
+	statesLock  sync.Mutex
+	runners     map[string]chan struct{} // contains map of active runners w/ a stop channel
 }
 
 // New returns a new instance of the Health struct.
 func New() *Health {
 	return &Health{
-		Logger:     log.NewSimple(),
-		configs:    make([]*Config, 0),
-		states:     make(map[string]State, 0),
-		runners:    make(map[string]chan struct{}, 0),
-		active:     newBool(),
-		statesLock: sync.Mutex{},
+		Logger:      log.NewSimple(),
+		configs:     make([]*Config, 0),
+		states:      make(map[string]State, 0),
+		runners:     make(map[string]chan struct{}, 0),
+		active:      newBool(),
+		statesLock:  sync.Mutex{},
+		configsLock: sync.Mutex{},
 	}
 }
 
@@ -152,39 +155,61 @@ func (h *Health) DisableLogging() {
 // AddChecks is used for adding multiple check definitions at once (as opposed
 // to adding them sequentially via "AddCheck()").
 func (h *Health) AddChecks(cfgs []*Config) error {
+	h.configsLock.Lock()
+	defer h.configsLock.Unlock()
 	if h.active.val() {
 		return ErrNoAddCfgWhenActive
 	}
-
 	h.configs = append(h.configs, cfgs...)
-
 	return nil
 }
 
 // AddCheck is used for adding a single check definition to the current health
 // instance.
 func (h *Health) AddCheck(cfg *Config) error {
+	h.configsLock.Lock()
+	defer h.configsLock.Unlock()
 	if h.active.val() {
 		return ErrNoAddCfgWhenActive
 	}
-
 	h.configs = append(h.configs, cfg)
 	return nil
+}
+
+// Configs returns a snapshot of all registered check configurations. The
+// returned slice is a copy — appending to it or reordering it does not affect
+// the Health instance. The *Config pointers are shared with internal state;
+// callers must not mutate fields on the returned configs.
+func (h *Health) Configs() []*Config {
+	h.configsLock.Lock()
+	defer h.configsLock.Unlock()
+	out := make([]*Config, len(h.configs))
+	copy(out, h.configs)
+	return out
 }
 
 // Start will start all of the defined health checks. Each of the checks run in
 // their own goroutines (as "time.Ticker").
 func (h *Health) Start() error {
+	h.configsLock.Lock()
 	if h.active.val() {
+		h.configsLock.Unlock()
 		return ErrAlreadyRunning
 	}
+	// Snapshot configs under the lock so a concurrent AddCheck/AddChecks can't
+	// race with the launch loop below. The active flag flips inside the same
+	// critical section, which serializes Start against any further AddCheck/
+	// AddChecks attempts.
+	configs := make([]*Config, len(h.configs))
+	copy(configs, h.configs)
 
 	// if there are no check configs, this is a noop
-	if len(h.configs) < 1 {
+	if len(configs) < 1 {
+		h.configsLock.Unlock()
 		return nil
 	}
 
-	for _, c := range h.configs {
+	for _, c := range configs {
 		h.Logger.WithFields(log.Fields{"name": c.Name}).Debug("Starting checker")
 		ticker := time.NewTicker(c.Interval)
 		stop := make(chan struct{})
@@ -196,6 +221,7 @@ func (h *Health) Start() error {
 
 	// Checkers are now actively running
 	h.active.setTrue()
+	h.configsLock.Unlock()
 
 	return nil
 }
