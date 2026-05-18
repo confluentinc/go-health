@@ -38,6 +38,8 @@ type IHealth interface {
 	Stop() error
 	State() (map[string]State, bool, error)
 	Failed() bool
+	Configs() []*Config
+	AllRan() (ready bool, pending []string)
 }
 
 // ICheckable is an interface implemented by a number of bundled checkers such
@@ -125,22 +127,24 @@ type Health struct {
 	// StatusListener will report failures and recoveries
 	StatusListener IStatusListener
 
-	active     *sBool // indicates whether the healthcheck is actively running
-	configs    []*Config
-	states     map[string]State
-	statesLock sync.Mutex
-	runners    map[string]chan struct{} // contains map of active runners w/ a stop channel
+	active      *sBool // indicates whether the healthcheck is actively running
+	configs     []*Config
+	configsLock sync.Mutex
+	states      map[string]State
+	statesLock  sync.Mutex
+	runners     map[string]chan struct{} // contains map of active runners w/ a stop channel
 }
 
 // New returns a new instance of the Health struct.
 func New() *Health {
 	return &Health{
-		Logger:     log.NewSimple(),
-		configs:    make([]*Config, 0),
-		states:     make(map[string]State, 0),
-		runners:    make(map[string]chan struct{}, 0),
-		active:     newBool(),
-		statesLock: sync.Mutex{},
+		Logger:      log.NewSimple(),
+		configs:     make([]*Config, 0),
+		states:      make(map[string]State, 0),
+		runners:     make(map[string]chan struct{}, 0),
+		active:      newBool(),
+		statesLock:  sync.Mutex{},
+		configsLock: sync.Mutex{},
 	}
 }
 
@@ -156,6 +160,8 @@ func (h *Health) AddChecks(cfgs []*Config) error {
 		return ErrNoAddCfgWhenActive
 	}
 
+	h.configsLock.Lock()
+	defer h.configsLock.Unlock()
 	h.configs = append(h.configs, cfgs...)
 
 	return nil
@@ -168,8 +174,46 @@ func (h *Health) AddCheck(cfg *Config) error {
 		return ErrNoAddCfgWhenActive
 	}
 
+	h.configsLock.Lock()
+	defer h.configsLock.Unlock()
 	h.configs = append(h.configs, cfg)
 	return nil
+}
+
+// Configs returns a snapshot of all registered check configurations. The
+// returned slice is a copy — appending to it or reordering it does not affect
+// the Health instance. The *Config pointers are shared with internal state;
+// callers must not mutate fields on the returned configs.
+func (h *Health) Configs() []*Config {
+	h.configsLock.Lock()
+	defer h.configsLock.Unlock()
+	out := make([]*Config, len(h.configs))
+	copy(out, h.configs)
+	return out
+}
+
+// AllRan reports whether every registered check has produced at least one
+// state report since Start(). The second return value is the names of any
+// checks still pending, intended for diagnostic logging on startup timeouts.
+//
+// AllRan snapshots configs and states under their respective locks; it is safe
+// to call concurrently with AddCheck/AddChecks and with the running checkers.
+func (h *Health) AllRan() (ready bool, pending []string) {
+	h.configsLock.Lock()
+	names := make([]string, len(h.configs))
+	for i, c := range h.configs {
+		names[i] = c.Name
+	}
+	h.configsLock.Unlock()
+
+	h.statesLock.Lock()
+	defer h.statesLock.Unlock()
+	for _, name := range names {
+		if _, ok := h.states[name]; !ok {
+			pending = append(pending, name)
+		}
+	}
+	return len(pending) == 0, pending
 }
 
 // Start will start all of the defined health checks. Each of the checks run in
