@@ -192,24 +192,17 @@ func (h *Health) Configs() []*Config {
 // their own goroutines (as "time.Ticker").
 func (h *Health) Start() error {
 	h.configsLock.Lock()
+	defer h.configsLock.Unlock()
 	if h.active.val() {
-		h.configsLock.Unlock()
 		return ErrAlreadyRunning
 	}
-	// Snapshot configs under the lock so a concurrent AddCheck/AddChecks can't
-	// race with the launch loop below. The active flag flips inside the same
-	// critical section, which serializes Start against any further AddCheck/
-	// AddChecks attempts.
-	configs := make([]*Config, len(h.configs))
-	copy(configs, h.configs)
 
 	// if there are no check configs, this is a noop
-	if len(configs) < 1 {
-		h.configsLock.Unlock()
+	if len(h.configs) < 1 {
 		return nil
 	}
 
-	for _, c := range configs {
+	for _, c := range h.configs {
 		h.Logger.WithFields(log.Fields{"name": c.Name}).Debug("Starting checker")
 		ticker := time.NewTicker(c.Interval)
 		stop := make(chan struct{})
@@ -221,7 +214,6 @@ func (h *Health) Start() error {
 
 	// Checkers are now actively running
 	h.active.setTrue()
-	h.configsLock.Unlock()
 
 	return nil
 }
