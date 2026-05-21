@@ -714,3 +714,43 @@ func TestStatusListenerOnRecover(t *testing.T) {
 		Expect(string(testLogger.Bytes())).To(ContainSubstring(testStr))
 	})
 }
+
+func TestConfigs(t *testing.T) {
+	RegisterTestingT(t)
+
+	t.Run("Returns empty slice when nothing has been added", func(t *testing.T) {
+		h := setupNewTestHealth()
+		Expect(h.Configs()).To(BeEmpty())
+	})
+
+	t.Run("Returns registered configs in registration order", func(t *testing.T) {
+		h := setupNewTestHealth()
+		cfgs := []*Config{
+			{Name: "foo", Checker: &fakes.FakeICheckable{}, Interval: testCheckInterval},
+			{Name: "bar", Checker: &fakes.FakeICheckable{}, Interval: testCheckInterval},
+		}
+		Expect(h.AddChecks(cfgs)).To(Succeed())
+
+		got := h.Configs()
+		Expect(got).To(HaveLen(2))
+		Expect(got[0].Name).To(Equal("foo"))
+		Expect(got[1].Name).To(Equal("bar"))
+	})
+
+	t.Run("Returned slice is a copy", func(t *testing.T) {
+		h := setupNewTestHealth()
+		Expect(h.AddCheck(&Config{Name: "foo", Checker: &fakes.FakeICheckable{}, Interval: testCheckInterval})).To(Succeed())
+
+		got := h.Configs()
+		Expect(got).To(HaveLen(1))
+
+		// Mutating the returned slice (append + reorder) must not affect internal state
+		got = append(got, &Config{Name: "bogus"})
+		got[0] = &Config{Name: "replaced"}
+
+		again := h.Configs()
+		Expect(again).To(HaveLen(1))
+		Expect(again[0].Name).To(Equal("foo"))
+	})
+}
+
