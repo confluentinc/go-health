@@ -1,6 +1,6 @@
 name: go-health
 lang: go
-lang_version: 1.13
+lang_version: 1.23.8
 git:
   enable: true
 semaphore:
