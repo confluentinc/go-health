@@ -2,7 +2,7 @@ package testlog
 
 import (
 	"github.com/confluentinc/go-health/v2/log"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
